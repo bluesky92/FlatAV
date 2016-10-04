@@ -1,0 +1,168 @@
+#
+# FVD file format
+#
+
+FVD is a malware signature database file that is assembled from five type of part files: .hdb, .cdb, .xdb, .sdb, .wdb.
+
+All part files are optional except file .hdb.
+
+=================
+1. File .hdb
+=================
+
+Contains file header information.
+
+Content Format:
+    DbMajorVersion:DbMinorVersion:MinimalAvMajorVersion:MinimalAvMinorVersion
+
+Field Description:
+    DbMajorVersion: dword           # Major version of database
+	
+    DbMinorVersion: byte            # Minor version of database
+	
+    MinimalAvMajorVersion: word     # Minimum major version of AV for using database
+	
+    MinimalAvMinorVersion: byte     # Minimum minor version of AV for using database
+
+=================
+2. File .cdb
+=================
+
+Contains list of records for detecting malware using MD5 hash of the malware file.
+
+Record Format:
+    MWName:MWType:FileSize:MD5Hash
+
+Field Description:
+    MWName:      char[31]   # Malware name
+
+    MWType:      byte       # Malware type. Available values:    
+                                0 = worm
+                                1 = trojan
+                                2 = virus
+                                3 = script
+                                4 = adware
+                                5 = spyware
+
+    FileSize:    dword      # Malware file size
+
+    MD5Hash:     char[16]   # Malware MD5 hash in lowercase hex string. Must be exactly 16 chars. Zero prefix is required for odd number hex string
+
+Note:
+    Record will be sorted by order of FileSize+MD5Hash.
+
+
+=================
+3. File .xdb
+=================
+
+Contains list of records for detecting malware using MD5 hash of malware signature string in the scanned file.
+
+Record Format:
+    FileType:MWName:MWType:FileOffset:SignLength:SignMD5
+
+Field Description:
+    FileType:       byte        # Malware file type. Available values:    
+                                    0 = raw
+                                    1 = PE
+                                    2 = PE64
+                                    3 = Script
+                                    4 = DOS
+                                    5 = ELF
+
+    MWName:         char[31]    # Malware name
+
+    MWType:         byte        # Malware type. For the available values see explanation in File .cdb
+
+    FileOffset:     char[16]    # Determine file offset in scanned file for checking the malware signature. The available value types:
+                                    n       = Absolute file offset number
+                                    o-n     = EOF - n bytes
+
+                                    # Belows are only valid for PE type file:
+                                    %+n     = PE's Entry point + n bytes
+                                    $m      = Start of section m, where m is zero based index with max value FF
+                                    $m+n    = Start of section m + n bytes
+                                    $l      = Start of last section
+                                    $l+n    = Start of last section + n bytes
+                                    
+                                    # note: all number value must be in hex format and no spaces between symbols. For example:
+                                         bdb
+                                         o-f
+                                         %+1e
+                                         $1+20
+    
+    SignLength:     dword       # Signature length
+
+    SignMD5:        char[16]    # Signature MD5 hash in lowercase hex string. Must be exactly 16 chars. Zero prefix is required for odd number hex string
+
+Note:
+    Record will be sorted by order of FileType+FileOffset.
+
+
+=================
+4. File .sdb
+=================
+
+Contains list of records for detecting malware by searching a malware signature pattern in the scanned file.
+
+Record Format:
+    FileType:MWName:MWType:FileOffset:SignHexString
+
+Field Description:
+    FileType:       byte        # Malware file type. For the available values see explanation in File .xdb
+
+    MWName:         char[31]    # Malware name
+
+    MWType:         byte        # Malware type. For the available values see explanation in File .cdb
+
+    FileOffset:     char[16]    # Determine the starting file offset in scanned file for searching malware signature pattern. The available value types:
+                                    n       = Absolute file offset number
+                                    o-n     = EOF - n bytes
+                                    x       = Any offset, commonly used for script/text-based malware
+
+                                    # Belows are only valid for PE type file:
+                                    %+n     = PE's entry point + n bytes
+                                    $m      = Start of section m to end of section m, where m is zero based index with max value FF
+                                    $m+n    = Start of section m + n bytes
+                                    $l      = Start of last section to end of last section
+                                    $l+n    = Start of last section + n bytes
+                                    $x      = Any section
+                                    
+                                    # note: all number value must be in hex format and no spaces between symbols. For example:
+                                         bdb
+                                         o-f
+                                         %+1e
+                                         $1+20
+
+    SignHexString:  dynamic_string (maxlength = 512 bytes)  # Malware signature pattern in hexadecimal format. 
+                                                            # It could contain special symbol with certain meanings:
+                                                                ??      = match any byte
+                                                                *       = match any number of bytes
+                                                                {n}     = match n bytes
+                                                                {-n}    = match n or less bytes
+                                                                {n-}    = match n or more bytes
+    
+Note:
+    Record will be sorted by order of FileType+FileOffset
+
+
+=================
+5. File .wdb
+=================
+
+Contains list of file whitelist record based on md5 hash on the file.
+
+Record Format:
+    Desc:Type:FileSize:MD5Hash
+
+Field Description:
+    Desc:       char[31]    # Whitelist file description
+
+    Type:       byte        # Unused, reserved for future. The value can be just set to 0
+
+    FileSize:   dword       # Whitelist file size
+
+    MD5Hash:    char[16]    # Whitelist file MD5 hash in lowercase hex string. Must be exactly 16 chars. Zero prefix is required for odd number hex string
+
+Note:
+    Record will be sorted by order of FileSize+MD5Hash.
